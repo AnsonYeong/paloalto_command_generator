@@ -1,0 +1,241 @@
+// Uses an installed Chrome and its DevTools protocol. No browser package required.
+import { spawn } from 'node:child_process'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
+import assert from 'node:assert/strict'
+
+const chrome = process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+const root = process.cwd()
+const qa = resolve(root, '.qa')
+await mkdir(qa, { recursive: true })
+const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '5178', '--strictPort'], { cwd: root, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
+let serverOutput = ''
+server.stdout.on('data', d => { serverOutput += d })
+server.stderr.on('data', d => { serverOutput += d })
+let browser
+let socket
+const pause = ms => new Promise(r => setTimeout(r, ms))
+async function until(fn, label) {
+  for (let i = 0; i < 80; i++) { try { const result = await fn(); if (result) return result } catch {} await pause(150) }
+  throw new Error(`Timed out: ${label}. ${serverOutput}`)
+}
+
+try {
+  await until(async () => (await fetch('http://127.0.0.1:5178')).ok, 'Vite startup')
+  browser = spawn(chrome, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--disable-background-networking', '--remote-debugging-port=9237', `--user-data-dir=${resolve(root, '.browser-qa')}`, 'about:blank'], { windowsHide: true, stdio: 'ignore' })
+  browser.on('error', e => { throw e })
+  const targets = await until(async () => { const t = await (await fetch('http://127.0.0.1:9237/json')).json(); return t.some(p => p.type === 'page') && t }, 'Chrome startup')
+  socket = new WebSocket(targets.find(t => t.type === 'page').webSocketDebuggerUrl)
+  await new Promise((resolve, reject) => { socket.addEventListener('open', resolve, { once: true }); socket.addEventListener('error', reject, { once: true }) })
+  let seq = 0
+  const calls = new Map()
+  const errors = []
+  socket.addEventListener('message', e => {
+    const m = JSON.parse(e.data)
+    if (m.id) { const p = calls.get(m.id); if (p) { calls.delete(m.id); m.error ? p.reject(new Error(JSON.stringify(m.error))) : p.resolve(m.result) } }
+    else if (m.method === 'Runtime.exceptionThrown') errors.push(m.params.exceptionDetails.text + ' ' + (m.params.exceptionDetails.exception?.description || ''))
+  })
+  const cdp = (method, params = {}) => new Promise((resolve, reject) => { const id = ++seq; calls.set(id, { resolve, reject }); socket.send(JSON.stringify({ id, method, params })) })
+  const run = async expression => {
+    const r = await cdp('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })
+    if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text)
+    return r.result.value
+  }
+  async function action(expression) { const result = await run(expression); await pause(100); return result }
+  const button = text => `Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim() === ${JSON.stringify(text)})`
+  const click = text => action(`${button(text)}.click()`)
+  const fill = (label, value, tag = 'input') => action(`(() => {
+    const label = Array.from(document.querySelectorAll('label.field')).find(l => l.firstElementChild.textContent === ${JSON.stringify(label)});
+    const el = label.querySelector(${JSON.stringify(tag)});
+    Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), 'value').set.call(el, ${JSON.stringify(value)});
+    el.dispatchEvent(new Event(${JSON.stringify(tag === 'select' ? 'change' : 'input')}, { bubbles: true }));
+  })()`)
+  const nav = tab => action(`document.querySelectorAll('nav[aria-label="Quick navigation"] button')[${tab}].click()`)
+  const sidebarSearch = query => action(`(() => {
+    const el = document.querySelector('[aria-label="Search objects and navigation"]');
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, ${JSON.stringify(query)});
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  })()`)
+  const text = () => run(`document.querySelector('main').innerText`)
+  const command = () => run(`Array.from(document.querySelectorAll('.code-line code')).map(e => e.textContent).join(${JSON.stringify('\n')})`)
+  const count = kind => run(`JSON.parse(localStorage.getItem('pan-command-builder-v1')).${kind}.length`)
+
+  await cdp('Page.enable')
+  await cdp('Runtime.enable')
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1100, deviceScaleFactor: 1, mobile: false })
+  await cdp('Page.navigate', { url: 'http://127.0.0.1:5178' })
+  await until(() => run(`!!document.querySelector('h1')`), 'React render')
+  await run(`localStorage.clear()`)
+  await cdp('Page.reload')
+  await pause(300)
+  await until(() => run(`!!document.querySelector('.copy-button')`), 'Empty workspace render')
+  await run('document.fonts.ready.then(() => true)')
+  assert.equal(await run(`${button('Copy commands')}.disabled`), true)
+  await writeFile(resolve(qa, 'empty-desktop.png'), Buffer.from((await cdp('Page.captureScreenshot')).data, 'base64'))
+
+  const selectTheme = theme => action(`document.querySelector('[aria-label="Use ${theme} mode"]').click()`)
+  assert.equal(await run('document.documentElement.dataset.theme'), 'light')
+  await fill('IP address / CIDR', '192.0.2.22')
+  await selectTheme('dark')
+  assert.equal(await run('document.documentElement.dataset.theme'), 'dark')
+  assert.equal(await run(`getComputedStyle(document.documentElement).colorScheme`), 'dark')
+  assert.equal(await run(`localStorage.getItem('pan-command-builder-theme')`), 'dark')
+  await selectTheme('light')
+  assert.equal(await run(`document.querySelector('input[placeholder="192.168.10.10 or 10.0.0.0/24"]').value`), '192.0.2.22', 'theme switching preserves form drafts')
+
+  await fill('IP address / CIDR', '999.10.0.1')
+  await click('Add address')
+  assert.match(await text(), /valid IPv4/)
+  await fill('IP address / CIDR', '192.168.10.10')
+  await fill('Object name', 'WEB-SERVER-01')
+  await click('Add address')
+  assert.equal(await count('addresses'), 1)
+  assert.match(await command(), /set address "WEB-SERVER-01" ip-netmask 192.168.10.10\/32/)
+
+  await click('Bulk paste')
+  await fill('Paste your addresses', 'WEB-SERVER-01,10.0.0.5\nOFFICE,10.0.0.0/24', 'textarea')
+  await click('Add addresses')
+  assert.equal(await count('addresses'), 1, 'bulk import must be atomic')
+  assert.match(await text(), /already used/)
+  await fill('Paste your addresses', 'WEB-SERVER-02,192.168.10.11\nOFFICE-NET\t10.20.0.0/24', 'textarea')
+  await click('Add addresses')
+  assert.equal(await count('addresses'), 3)
+
+  // The reference-style sidebar remains functional when collapsed or searched.
+  await action(`document.querySelector('[aria-label="Collapse navigation panel"]').click()`)
+  assert.equal(await run(`document.querySelector('#sidebar-panel').hidden`), true)
+  assert.equal(await run(`document.querySelector('main').getBoundingClientRect().left`), 60)
+  await nav(1)
+  assert.match(await run(`document.querySelector('.panel-heading h2').textContent`), /service/)
+  await action(`document.querySelector('[aria-label="Expand sidebar"]').click()`)
+  await sidebarSearch('WEB-SERVER-02')
+  assert.equal(await run(`document.querySelectorAll('.sidebar-result').length`), 1)
+  await action(`document.querySelector('.sidebar-result').click()`)
+  assert.match(await run(`document.querySelector('.panel-heading h2').textContent`), /Edit address/)
+  await click('Cancel')
+  await sidebarSearch('nothing-matches-this')
+  assert.equal(await run(`document.querySelectorAll('.sidebar-result').length`), 0)
+  assert.match(await run(`document.querySelector('#sidebar-panel').textContent`), /No matching objects/)
+  await action(`document.querySelector('[aria-label="Clear sidebar search"]').click()`)
+  await action(`document.querySelector('[aria-label="Collapse navigation panel"]').click()`)
+  await cdp('Input.dispatchKeyEvent', { type: 'keyDown', key: 'k', code: 'KeyK', modifiers: 2, windowsVirtualKeyCode: 75 })
+  await cdp('Input.dispatchKeyEvent', { type: 'keyUp', key: 'k', code: 'KeyK', modifiers: 2, windowsVirtualKeyCode: 75 })
+  await pause(100)
+  assert.equal(await run(`document.activeElement.getAttribute('aria-label')`), 'Search objects and navigation')
+
+  await nav(1)
+  await click('HTTPS')
+  await click('Add service')
+  await click('DNS · UDP')
+  await click('Add service')
+  assert.equal(await count('services'), 2)
+  await nav(2)
+  await fill('Group name', 'WEB-SERVERS')
+  await click('Select all')
+  await click('Add group')
+  await fill('Group type', 'service', 'select')
+  await fill('Group name', 'APP-SERVICES')
+  await click('Select all')
+  await click('Add group')
+  assert.equal(await count('groups'), 2)
+  assert.match(await command(), /set service-group "APP-SERVICES" members "UDP-53"/)
+
+  await nav(0)
+  await action(`document.querySelector('[aria-label="Edit WEB-SERVER-01"]').click()`)
+  await fill('Object name', 'WEB-SERVER-PRIMARY')
+  await click('Save changes')
+  assert.match(await command(), /set address-group "WEB-SERVERS" static "WEB-SERVER-PRIMARY"/)
+  await action(`document.querySelector('[aria-label="Delete WEB-SERVER-PRIMARY"]').click()`)
+  assert.equal(await count('addresses'), 2)
+  assert.ok(!(await command()).includes('WEB-SERVER-PRIMARY'))
+  await click('Undo')
+  assert.equal(await count('addresses'), 3)
+
+  await fill('Scope', 'device-group', 'select')
+  assert.equal(await run(`${button('Copy commands')}.disabled`), true)
+  await fill('Device group', 'Branch Firewalls')
+  assert.match(await command(), /set device-group "Branch Firewalls" address/)
+  await action(`document.querySelectorAll('.toggle')[1].click()`)
+  assert.ok((await command()).endsWith('commit'))
+  await action(`document.querySelectorAll('.toggle')[1].click()`)
+  await action(`document.querySelectorAll('.toggle')[0].click()`)
+  assert.ok((await command()).startsWith('set device-group'))
+  await action(`document.querySelectorAll('.toggle')[0].click()`)
+
+  await run(`Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async t => { window.qaCopied = t } } })`)
+  await click('Copy commands')
+  assert.equal(await run('window.qaCopied'), await command())
+  await cdp('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: qa })
+  await action(`document.querySelector('[aria-label="Download commands as text"]').click()`)
+  const txt = await until(() => readFile(resolve(qa, 'pan-os-config.txt'), 'utf8'), 'command download')
+  assert.equal(txt.trim(), (await command()).trim())
+  await click('Export workspace')
+  const exported = await until(() => readFile(resolve(qa, 'pan-workspace.json'), 'utf8'), 'workspace download')
+  assert.equal(JSON.parse(exported).groups.length, 2)
+  const oldCommands = await command()
+  await selectTheme('dark')
+  assert.equal(await command(), oldCommands, 'appearance changes cannot change CLI output')
+  await cdp('Page.reload')
+  await pause(300)
+  await until(() => run(`!!document.querySelector('.code-line')`), 'Restored workspace')
+  assert.equal(await command(), oldCommands, 'browser reload should restore the workspace')
+  assert.equal(await run('document.documentElement.dataset.theme'), 'dark', 'reload restores the selected theme')
+  assert.equal(await run(`document.querySelector('[aria-label="Use dark mode"]').getAttribute('aria-pressed')`), 'true')
+
+  await click('Clear')
+  assert.equal(await run(`document.querySelector('dialog').open`), true)
+  assert.equal(await run(`getComputedStyle(document.querySelector('dialog')).backgroundColor`), 'rgb(25, 30, 38)')
+  await click('Cancel')
+  assert.equal(await count('addresses'), 3)
+  await click('Clear')
+  await click('Continue')
+  assert.equal(await count('addresses'), 0)
+  const document = await cdp('DOM.getDocument')
+  const fileInput = await cdp('DOM.querySelector', { nodeId: document.root.nodeId, selector: 'input[type=file]' })
+  await cdp('DOM.setFileInputFiles', { nodeId: fileInput.nodeId, files: [resolve(qa, 'pan-workspace.json')] })
+  await until(async () => (await count('addresses')) === 3, 'workspace import')
+  assert.equal(await command(), oldCommands)
+  assert.equal(await run('document.documentElement.dataset.theme'), 'dark', 'workspace import does not reset appearance')
+
+  // Screenshots at both breakpoints also check page-wide horizontal overflow.
+  await fill('Scope', 'firewall', 'select')
+  await action(`document.querySelector('[aria-label="Dismiss notification"]')?.click()`)
+  await run('window.scrollTo(0, 0)')
+  await selectTheme('light')
+  assert.equal(await run('document.documentElement.scrollWidth > innerWidth'), false)
+  await writeFile(resolve(qa, 'desktop.png'), Buffer.from((await cdp('Page.captureScreenshot')).data, 'base64'))
+  await selectTheme('dark')
+  await writeFile(resolve(qa, 'dark-desktop.png'), Buffer.from((await cdp('Page.captureScreenshot')).data, 'base64'))
+  await nav(1)
+  await writeFile(resolve(qa, 'dark-services.png'), Buffer.from((await cdp('Page.captureScreenshot')).data, 'base64'))
+  await nav(2)
+  await writeFile(resolve(qa, 'dark-groups.png'), Buffer.from((await cdp('Page.captureScreenshot')).data, 'base64'))
+  await nav(0)
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true })
+  await pause(100)
+  assert.equal(await run(`document.querySelector('#sidebar-panel').hidden`), true)
+  assert.equal(await run('document.documentElement.scrollWidth > innerWidth'), false)
+  await writeFile(resolve(qa, 'mobile.png'), Buffer.from((await cdp('Page.captureScreenshot')).data, 'base64'))
+  await selectTheme('light')
+  assert.equal(await run('document.documentElement.dataset.theme'), 'light')
+  await selectTheme('dark')
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 360, height: 780, deviceScaleFactor: 1, mobile: true })
+  await pause(100)
+  assert.equal(await run('document.documentElement.scrollWidth > innerWidth'), false, 'theme controls fit small phones')
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true })
+  await action(`document.querySelector('[aria-label="Expand sidebar"]').click()`)
+  assert.equal(await run(`document.querySelector('#sidebar-panel').hidden`), false)
+  assert.equal(await run('document.documentElement.scrollWidth > innerWidth'), false)
+  await writeFile(resolve(qa, 'mobile-sidebar.png'), Buffer.from((await cdp('Page.captureScreenshot')).data, 'base64'))
+  await action(`document.querySelector('[data-tab="services"]').click()`)
+  assert.equal(await run(`document.querySelector('#sidebar-panel').hidden`), true)
+  assert.match(await run(`document.querySelector('.panel-heading h2').textContent`), /service/)
+  assert.deepEqual(errors, [], 'no unhandled browser exceptions')
+  console.log('Browser checks passed: validation, bulk paste, service presets, both groups, edit, delete/undo, scopes, command options, copy, downloads, persistence, import/export, and desktop/mobile layout.')
+  console.log(`Screenshots saved in ${qa}`)
+  await cdp('Browser.close')
+} finally {
+  socket?.close()
+  browser?.kill()
+  server.kill()
+}
