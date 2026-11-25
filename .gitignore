@@ -13,7 +13,6 @@ dist-ssr
 .browser-qa/
 .qa/
 .desktop-build/
-release/
 *.local
 
 # Editor directories and files

@@ -1,0 +1,4 @@
+# Preserve published downloads and their checksummed companion files byte-for-byte.
+release/** -text
+# Generated Windows text files intentionally retain CRLF for their checksums.
+release/*.txt whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

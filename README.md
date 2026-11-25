@@ -4,7 +4,15 @@ A local Palo Alto PAN-OS command generator built with React, TypeScript, and Vit
 
 ## Share the Windows executable
 
-Send coworkers `release/PaloAltoCommandGenerator-1.0.0-Windows.zip`. They extract it and double-click **PaloAltoCommandGenerator.exe**. The EXE contains the app, matrix parser and Oswald font; no Node.js, project folder, installation or internet connection is needed for normal use. The ZIP includes a short guide, third-party licenses and file checksums.
+**[Download Windows ZIP](https://github.com/AnsonYeong/paloalto_command_generator/raw/refs/heads/main/release/PaloAltoCommandGenerator-1.0.0-Windows.zip)** · **[Download EXE](https://github.com/AnsonYeong/paloalto_command_generator/raw/refs/heads/main/release/PaloAltoCommandGenerator.exe)**
+
+1. Download the **Windows ZIP** above and extract it.
+2. Double-click **PaloAltoCommandGenerator.exe** in the extracted folder.
+3. Keep the launcher window open while using the tool in your browser.
+
+If you use GitHub's green **Code → Download ZIP** button instead, extract that ZIP, open the **release** folder, and run **PaloAltoCommandGenerator.exe** there.
+
+This is a portable app; no installer is needed. The EXE contains the app, matrix parser and Oswald font; no Node.js, project folder, installation or internet connection is needed for normal use. The Windows ZIP includes a short guide, third-party licenses and file checksums. Downloadable files are committed in [`release/`](release/), so coworkers can get them directly from GitHub.
 
 The executable opens the tool in their default browser and shows a small launcher with **Open app** and **Exit**. Keep that launcher open while working; closing it stops the local server. It binds only to `127.0.0.1:52473`, so it is not available to other computers on the network. Reopening the EXE reuses an existing instance. It runs as the current user without requesting administrator access.
 
@@ -19,7 +27,7 @@ npm run build:windows
 npm run test:windows
 ```
 
-The build uses Windows' .NET Framework C# compiler and embeds only `dist/` into a single AnyCPU EXE. The Windows test copies just that EXE into a separate folder, checks the local server, then exercises the app in an isolated Chrome profile with external DNS blocked. It covers the matrix worker, local font, command workflows, export/import and persistence. Release files are written to the ignored `release/` folder. No signing certificate is included.
+The build uses Windows' .NET Framework C# compiler and embeds only `dist/` into a single AnyCPU EXE. The Windows test copies just that EXE into a separate folder, checks the local server, then exercises the app in an isolated Chrome profile with external DNS blocked. It covers the matrix worker, local font, command workflows, export/import and persistence. Release files are written to `release/`; commit the updated EXE, ZIP, guide, notices and checksums when publishing a new build. No signing certificate is included.
 
 ## Run locally
 

@@ -2,11 +2,17 @@ PAN / builder - Palo Alto Command Generator v1.0.0
 ================================================
 
 HOW TO USE
+Download the Windows ZIP or EXE using the links at:
+https://github.com/AnsonYeong/paloalto_command_generator
+
 1. If you received the ZIP, extract it to a folder first.
 2. Double-click PaloAltoCommandGenerator.exe.
 3. The tool opens in your default web browser. Keep the small launcher
    window open while working. Open app reopens the browser tab.
 4. Use Exit or close the launcher window when you finish.
+
+If you downloaded the whole repository with Code > Download ZIP, extract
+it and find PaloAltoCommandGenerator.exe inside its release folder.
 
 No installation, administrator access, Node.js or internet connection is
 needed to use the tool. The font and spreadsheet reader are included.
