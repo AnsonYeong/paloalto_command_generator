@@ -14,11 +14,12 @@ interface SidebarProps {
   onNavigate: (tab: Tab) => void
   onEdit: (tab: Tab, id: string) => void
   onImport: () => void
+  onImportMatrix: () => void
   onExport: () => void
   onGuide: () => void
 }
 
-export function Sidebar({ workspace, tab, collapsed, guideOpen, onCollapse, onNavigate, onEdit, onImport, onExport, onGuide }: SidebarProps) {
+export function Sidebar({ workspace, tab, collapsed, guideOpen, onCollapse, onNavigate, onEdit, onImport, onImportMatrix, onExport, onGuide }: SidebarProps) {
   const [query, setQuery] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
   const toggleRef = useRef<HTMLButtonElement>(null)
@@ -68,7 +69,7 @@ export function Sidebar({ workspace, tab, collapsed, guideOpen, onCollapse, onNa
           {search && !visibleTabs.length && <p className="sidebar-empty">No matching tools.</p>}
         </nav>
         {search ? <section className="sidebar-section" aria-label="Search results"><h3>Objects <span>{results.length}</span></h3>{results.map(item => <button key={`${item.key}-${item.id}`} className="sidebar-link sidebar-result" onClick={() => { onEdit(item.key, item.id); setQuery('') }}><Icon name={item.icon} size={17} /><span><strong>{item.name}</strong><small>{item.title}</small></span></button>)}{!results.length && <p className="sidebar-empty">No matching objects.</p>}</section> : <>
-          <section className="sidebar-section" aria-label="Workspace files"><h3>Workspace</h3><button className="sidebar-link" onClick={onImport}><Icon name="upload" size={17} /><span>Import workspace</span></button><button className="sidebar-link" onClick={onExport}><Icon name="download" size={17} /><span>Export workspace</span></button></section>
+          <section className="sidebar-section" aria-label="Workspace files"><h3>Workspace</h3><button className="sidebar-link" onClick={onImportMatrix}><Icon name="upload" size={17} /><span>Import matrix</span></button><button className="sidebar-link" onClick={onImport}><Icon name="upload" size={17} /><span>Import workspace</span></button><button className="sidebar-link" onClick={onExport}><Icon name="download" size={17} /><span>Export workspace</span></button></section>
           <section className="sidebar-section" aria-label="Help and resources"><h3>Help & resources</h3><button className={`sidebar-link ${guideOpen ? 'active' : ''}`} onClick={onGuide} aria-expanded={guideOpen}><Icon name="book" size={17} /><span>Quick guide</span></button><a className="sidebar-link" href="https://docs.paloaltonetworks.com/ngfw/pan-os-cli-quick-start/cli-command-hierarchy/pan-os-11-2-configure-cli-command-hierarchy" target="_blank" rel="noreferrer"><Icon name="terminal" size={17} /><span>PAN-OS CLI reference</span></a></section>
         </>}
       </div>

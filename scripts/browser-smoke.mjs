@@ -1,13 +1,16 @@
 // Uses an installed Chrome and its DevTools protocol. No browser package required.
 import { spawn } from 'node:child_process'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import assert from 'node:assert/strict'
+import { matrixFixture } from '../tests/fixtures/matrix-fixture.mjs'
 
 const chrome = process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
 const root = process.cwd()
 const qa = resolve(root, '.qa')
 await mkdir(qa, { recursive: true })
+// Remove only prior test downloads so checks cannot read a stale file.
+await Promise.all(['pan-os-config.txt', 'pan-workspace.json'].map(file => rm(resolve(qa, file), { force: true })))
 const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '5178', '--strictPort'], { cwd: root, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
 let serverOutput = ''
 server.stdout.on('data', d => { serverOutput += d })
@@ -90,7 +93,13 @@ try {
   await fill('Object name', 'WEB-SERVER-01')
   await click('Add address')
   assert.equal(await count('addresses'), 1)
-  assert.match(await command(), /set address "WEB-SERVER-01" ip-netmask 192.168.10.10\/32/)
+  assert.match(await command(), /set address WEB-SERVER-01 ip-netmask 192.168.10.10\/32/)
+
+  await fill('IP address / CIDR', '10.202.52.0/23')
+  assert.equal(await run(`document.querySelector('input[placeholder="NET_10.202.52.0_23"]').value`), '')
+  await click('Add address')
+  assert.ok((await command()).split('\n').includes('set address NET_10.202.52.0_23 ip-netmask 10.202.52.0/23'))
+  await action(`document.querySelector('[aria-label="Delete NET_10.202.52.0_23"]').click()`)
 
   await click('Bulk paste')
   await fill('Paste your addresses', 'WEB-SERVER-01,10.0.0.5\nOFFICE,10.0.0.0/24', 'textarea')
@@ -138,13 +147,13 @@ try {
   await click('Select all')
   await click('Add group')
   assert.equal(await count('groups'), 2)
-  assert.match(await command(), /set service-group "APP-SERVICES" members "UDP-53"/)
+  assert.match(await command(), /set service-group APP-SERVICES members UDP-53/)
 
   await nav(0)
   await action(`document.querySelector('[aria-label="Edit WEB-SERVER-01"]').click()`)
   await fill('Object name', 'WEB-SERVER-PRIMARY')
   await click('Save changes')
-  assert.match(await command(), /set address-group "WEB-SERVERS" static "WEB-SERVER-PRIMARY"/)
+  assert.match(await command(), /set address-group WEB-SERVERS static WEB-SERVER-PRIMARY/)
   await action(`document.querySelector('[aria-label="Delete WEB-SERVER-PRIMARY"]').click()`)
   assert.equal(await count('addresses'), 2)
   assert.ok(!(await command()).includes('WEB-SERVER-PRIMARY'))
@@ -197,6 +206,75 @@ try {
   assert.equal(await command(), oldCommands)
   assert.equal(await run('document.documentElement.dataset.theme'), 'dark', 'workspace import does not reset appearance')
 
+  // A different customer layout, merged headers, and problematic rows all use the same importer.
+  const matrixPath = resolve(qa, 'matrix-fixture.xlsx')
+  await writeFile(matrixPath, matrixFixture())
+  const uploadMatrix = async path => {
+    const doc = await cdp('DOM.getDocument')
+    const input = await cdp('DOM.querySelector', { nodeId: doc.root.nodeId, selector: '.matrix-file' })
+    await cdp('DOM.setFileInputFiles', { nodeId: input.nodeId, files: [path] })
+    await until(() => run(`!!document.querySelector('.matrix-sheets')`), 'matrix parsed by worker')
+  }
+  const matrixCount = () => run(`document.querySelectorAll('.matrix-review-row').length`)
+  const importButton = `document.querySelector('.matrix-footer .primary')`
+  await click('Import matrix')
+  assert.equal(await run(`document.querySelector('.matrix-dialog').open`), true)
+  await uploadMatrix(matrixPath)
+  assert.equal(await run(`document.querySelectorAll('.matrix-sheets label').length`), 3)
+  assert.equal(await run(`document.querySelector('[aria-label="Map column C"]').value`), 'ignore', 'NAT is excluded')
+  assert.equal(await run(`document.querySelectorAll('.matrix-mapping-controls input')[0].value`), '14')
+  await fill('Filter rows by keywords', 'production, https')
+  await fill('Match', 'all', 'select')
+  await click('Review 1 rows')
+  assert.equal(await matrixCount(), 1)
+  await fill('Filter rows by keywords', '')
+  assert.equal(await matrixCount(), 5)
+  assert.equal(await run(`document.querySelectorAll('.matrix-row-summary > input:checked').length`), 2)
+  await action(`document.querySelectorAll('.matrix-row-summary > input')[2].click()`)
+  assert.equal(await run(`${importButton}.disabled`), true, 'selected ambiguous row blocks import without explicit partial acceptance')
+  await action(`document.querySelector('.matrix-partial input').click()`)
+  assert.equal(await run(`${importButton}.disabled`), false)
+  await click('Select clean rows')
+  await action(`document.querySelectorAll('.matrix-row-expand')[3].click()`)
+  await fill('Destination ports / services', 'TCP 587', 'textarea')
+  assert.equal(await run(`document.querySelectorAll('.matrix-row-summary > input:checked').length`), 3, 'correcting a row selects it once valid')
+  await click('Back to mapping')
+  await click('Select detected matrices')
+  await fill('Sheet to configure', '2', 'select')
+  assert.equal(await run(`document.querySelector('[aria-label="Map column C"]').value`), 'protocol')
+  // Verify manual remapping remains editable independently per sheet.
+  await action(`(() => { const e = document.querySelector('[aria-label="Map column E"]'); e.value = 'ignore'; e.dispatchEvent(new Event('change', {bubbles:true})); })()`)
+  await click('Reset suggestions')
+  assert.equal(await run(`document.querySelector('[aria-label="Map column E"]').value`), 'description')
+  await click('Review 6 rows')
+  assert.equal(await matrixCount(), 6)
+  assert.equal(await run(`document.querySelectorAll('.matrix-row-summary > input:checked').length`), 4)
+  assert.equal(await run(`${importButton}.textContent.trim()`), 'Import 11 objects')
+  await run(`document.querySelector('.matrix-body').scrollTop = 0`)
+  await writeFile(resolve(qa, 'matrix-review-dark.png'), Buffer.from((await cdp('Page.captureScreenshot')).data, 'base64'))
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true })
+  await pause(100)
+  assert.equal(await run(`document.querySelector('.matrix-dialog').scrollWidth > innerWidth`), false, 'matrix importer fits mobile')
+  assert.equal(await run(`document.querySelector('.matrix-body').scrollWidth > innerWidth`), false)
+  await writeFile(resolve(qa, 'matrix-review-mobile.png'), Buffer.from((await cdp('Page.captureScreenshot')).data, 'base64'))
+  await action(`${importButton}.click()`)
+  assert.equal(await count('addresses'), 10)
+  assert.equal(await count('services'), 6)
+  assert.match(await command(), /service TCP-587 protocol tcp port 587/)
+  assert.ok((await command()).includes('address NET_192.0.2.0_24 ip-netmask 192.0.2.0/24'))
+  assert.ok(!(await command()).includes('203.0.113.99'), 'NAT address not imported')
+  assert.ok(!(await command()).includes('ICMP'), 'unselected unsupported values not imported')
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1100, deviceScaleFactor: 1, mobile: false })
+  await click('Undo')
+  assert.equal(await command(), oldCommands, 'matrix append is fully reversible')
+  await selectTheme('light')
+  await click('Import matrix')
+  await uploadMatrix(matrixPath)
+  await writeFile(resolve(qa, 'matrix-mapping-light.png'), Buffer.from((await cdp('Page.captureScreenshot')).data, 'base64'))
+  await action(`document.querySelector('[aria-label="Close matrix importer"]').click()`)
+  assert.equal(await command(), oldCommands, 'cancel leaves the workspace unchanged')
+  await selectTheme('dark')
+
   // Screenshots at both breakpoints also check page-wide horizontal overflow.
   await fill('Scope', 'firewall', 'select')
   await action(`document.querySelector('[aria-label="Dismiss notification"]')?.click()`)
@@ -231,7 +309,7 @@ try {
   assert.equal(await run(`document.querySelector('#sidebar-panel').hidden`), true)
   assert.match(await run(`document.querySelector('.panel-heading h2').textContent`), /service/)
   assert.deepEqual(errors, [], 'no unhandled browser exceptions')
-  console.log('Browser checks passed: validation, bulk paste, service presets, both groups, edit, delete/undo, scopes, command options, copy, downloads, persistence, import/export, and desktop/mobile layout.')
+  console.log('Browser checks passed: validation, bulk paste, service presets, both groups, edit, delete/undo, scopes, command options, copy, downloads, persistence, import/export, matrix upload/mapping/filter/review/correction/append/undo, and desktop/mobile layout.')
   console.log(`Screenshots saved in ${qa}`)
   await cdp('Browser.close')
 } finally {

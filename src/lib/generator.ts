@@ -51,8 +51,8 @@ export function nameError(name: string): string | null {
   if (!name.trim()) return 'Enter an object name.'
   if (name !== name.trim()) return 'Remove spaces at the start or end of the name.'
   if (name.length > 63) return 'Names must be 63 characters or fewer.'
-  if (!/^[a-zA-Z0-9][a-zA-Z0-9 _-]*$/.test(name)) {
-    return 'Start with a letter or number; use letters, numbers, spaces, hyphens, or underscores.'
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9 ._-]*$/.test(name)) {
+    return 'Start with a letter or number; use letters, numbers, spaces, dots, hyphens, or underscores.'
   }
   return null
 }
@@ -137,7 +137,30 @@ export function normalizeAddress(type: AddressType, value: string): string {
 export function suggestedName(type: AddressType, value: string): string {
   if (!value.trim()) return ''
   const prefix = type === 'fqdn' ? 'FQDN' : type === 'ip-range' ? 'RANGE' : value.includes('/') ? 'NET' : 'HOST'
-  return `${prefix}-${value.trim().replace(/[^a-zA-Z0-9_-]+/g, '-')}`.slice(0, 63)
+  return `${prefix}_${value.trim().replace(/[^a-zA-Z0-9._-]+/g, '_')}`.slice(0, 63)
+}
+
+function updateGeneratedAddressNames(workspace: Workspace): Workspace {
+  const used = new Set([...workspace.addresses.map(a => a.name), ...workspace.groups.filter(g => g.kind === 'address').map(g => g.name)])
+  const addresses = workspace.addresses.map(address => {
+    if (addressError(address.type, address.value)) return address
+    const candidates = [address.value]
+    // Matrix imports named host objects before appending their /32 or /128 prefix.
+    if (address.type === 'ip-netmask') candidates.push(address.value.replace(address.value.includes(':') ? /\/128$/ : /\/32$/, ''))
+    const original = candidates.find(value => {
+      const prefix = address.type === 'fqdn' ? 'FQDN' : address.type === 'ip-range' ? 'RANGE' : value.includes('/') ? 'NET' : 'HOST'
+      return address.name === `${prefix}-${value.replace(/[^a-zA-Z0-9_-]+/g, '-')}`.slice(0, 63)
+    })
+    // Only exact matches to the previous generated pattern are upgraded.
+    if (!original) return address
+    const base = suggestedName(address.type, original)
+    let name = base, suffix = 2
+    while (used.has(name)) { const ending = `-${suffix++}`; name = base.slice(0, 63 - ending.length) + ending }
+    used.add(name)
+    return { ...address, name }
+  })
+  // Groups refer to stable object IDs, so their memberships survive the rename.
+  return { ...workspace, addresses }
 }
 
 export function inferAddressType(value: string): AddressType {
@@ -203,28 +226,30 @@ export function validateWorkspace(workspace: Workspace): Issue[] {
 }
 
 const quote = (value: string) => `"${value}"`
+// Validated names only need quoting when spaces would split the CLI argument.
+const cliName = (value: string) => value.includes(' ') ? quote(value) : value
 
 export function generateCommands(workspace: Workspace): { lines: CommandLine[]; issues: Issue[] } {
   const issues = validateWorkspace(workspace)
   if (issues.length) return { lines: [], issues }
   const lines: CommandLine[] = []
   const push = (text: string, section: string) => lines.push({ text, section })
-  const prefix = workspace.scope === 'firewall' ? 'set' : workspace.scope === 'shared' ? 'set shared' : `set ${workspace.scope} ${quote(workspace.scopeName)}`
+  const prefix = workspace.scope === 'firewall' ? 'set' : workspace.scope === 'shared' ? 'set shared' : `set ${workspace.scope} ${cliName(workspace.scopeName)}`
   if (!workspace.addresses.length && !workspace.services.length && !workspace.groups.length) return { lines, issues }
   if (workspace.includeConfigure) push('configure', 'Session')
   workspace.addresses.forEach(a => {
-    push(`${prefix} address ${quote(a.name)} ${a.type} ${normalizeAddress(a.type, a.value)}`, 'Addresses')
-    if (a.description) push(`${prefix} address ${quote(a.name)} description ${quote(a.description)}`, 'Addresses')
+    push(`${prefix} address ${cliName(a.name)} ${a.type} ${normalizeAddress(a.type, a.value)}`, 'Addresses')
+    if (a.description) push(`${prefix} address ${cliName(a.name)} description ${quote(a.description)}`, 'Addresses')
   })
   workspace.services.forEach(s => {
     const source = s.sourcePorts.trim() ? ` source-port ${normalizePorts(s.sourcePorts)}` : ''
-    push(`${prefix} service ${quote(s.name)} protocol ${s.protocol} port ${normalizePorts(s.ports)}${source}`, 'Services')
-    if (s.description) push(`${prefix} service ${quote(s.name)} description ${quote(s.description)}`, 'Services')
+    push(`${prefix} service ${cliName(s.name)} protocol ${s.protocol} port ${normalizePorts(s.ports)}${source}`, 'Services')
+    if (s.description) push(`${prefix} service ${cliName(s.name)} description ${quote(s.description)}`, 'Services')
   })
   workspace.groups.forEach(g => {
     const objects = g.kind === 'address' ? workspace.addresses : workspace.services
     // One membership per command avoids very long CLI lines for large batches.
-    g.members.forEach(id => push(`${prefix} ${g.kind}-group ${quote(g.name)} ${g.kind === 'address' ? 'static' : 'members'} ${quote(objects.find(o => o.id === id)!.name)}`, 'Groups'))
+    g.members.forEach(id => push(`${prefix} ${g.kind}-group ${cliName(g.name)} ${g.kind === 'address' ? 'static' : 'members'} ${cliName(objects.find(o => o.id === id)!.name)}`, 'Groups'))
   })
   if (workspace.includeCommit) push('commit', 'Session')
   return { lines, issues }
@@ -243,7 +268,7 @@ export function readWorkspace(value: unknown): Workspace {
     !w.groups.every(g => strings(g, ['id', 'name', 'kind']) && ['address', 'service'].includes(g.kind as string) && Array.isArray(g.members) && g.members.every(m => typeof m === 'string'))) {
     throw new Error('This file is not a supported command-builder workspace.')
   }
-  return w as unknown as Workspace
+  return updateGeneratedAddressNames(w as unknown as Workspace)
 }
 
 export function exampleWorkspace(): Workspace {
