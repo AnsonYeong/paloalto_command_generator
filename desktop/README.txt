@@ -12,7 +12,9 @@ https://github.com/AnsonYeong/paloalto_command_generator
 4. Use Exit or close the launcher window when you finish.
 
 If you downloaded the whole repository with Code > Download ZIP, extract
-it and find PaloAltoCommandGenerator.exe inside its release folder.
+it and open the extracted project folder. PaloAltoCommandGenerator.exe
+is right there beside this START_HERE.txt file. Double-click it to start.
+You do not need to open the source or release folders to use the app.
 
 No installation, administrator access, Node.js or internet connection is
 needed to use the tool. The font and spreadsheet reader are included.
@@ -45,11 +47,13 @@ This tool does not connect to or configure your firewall automatically.
 Review the target scope and generated commands before applying them.
 
 DISTRIBUTION
-The EXE is portable and contains the whole app. Keep a copy of this guide
-and THIRD-PARTY-NOTICES.txt with it when distributing the package.
+The EXE is portable and contains the whole app. Keep this START_HERE.txt
+guide and the third-party notices when distributing the package. Notices
+are beside the EXE in the Windows ZIP, or in release/ in the repository.
 The executable is not code-signed. If your organization blocks unsigned
 applications, ask your IT team to approve or sign this build.
-An SHA256SUMS.txt file is provided to verify the delivered files.
+SHA256SUMS.txt in the Windows ZIP verifies its flat files. The repository's
+release/SHA256SUMS.txt lists paths relative to the project folder.
 
 Third-party notices are also embedded in the EXE and accessible at
 http://127.0.0.1:52473/THIRD-PARTY-NOTICES.txt while the app is running.

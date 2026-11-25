@@ -92,26 +92,36 @@ try {
         foreach ($image in $images) { $writer.Write([byte[]]$image.Data) }
     } finally { $writer.Dispose(); $iconStream.Dispose() }
 
-    $exe = Join-Path $releaseRoot 'PaloAltoCommandGenerator.exe'
+    $exe = Join-Path $projectRoot 'PaloAltoCommandGenerator.exe'
     & $compiler /nologo /target:winexe /platform:anycpu /optimize+ "/out:$exe" "/win32icon:$iconPath" "/win32manifest:$(Join-Path $projectRoot 'desktop/app.manifest')" "/resource:$assetZip,PANBuilder.Assets.zip" /reference:System.dll /reference:System.Core.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.IO.Compression.dll (Join-Path $projectRoot 'desktop/Launcher.cs')
     if ($LASTEXITCODE -ne 0) { throw 'Windows EXE compilation failed.' }
-    Copy-Item -LiteralPath (Join-Path $projectRoot 'desktop/README.txt') -Destination (Join-Path $releaseRoot 'README.txt') -Force
+    $guide = Join-Path $projectRoot 'START_HERE.txt'
+    Copy-Item -LiteralPath (Join-Path $projectRoot 'desktop/README.txt') -Destination $guide -Force
 
-    $checksumPath = Join-Path $releaseRoot 'SHA256SUMS.txt'
-    $checksums = @('PaloAltoCommandGenerator.exe', 'README.txt', 'THIRD-PARTY-NOTICES.txt') | ForEach-Object {
-        (Get-FileHash -LiteralPath (Join-Path $releaseRoot $_) -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $_
+    $portableFiles = @(
+        @{ Name = 'PaloAltoCommandGenerator.exe'; Path = $exe },
+        @{ Name = 'START_HERE.txt'; Path = $guide },
+        @{ Name = 'THIRD-PARTY-NOTICES.txt'; Path = (Join-Path $releaseRoot 'THIRD-PARTY-NOTICES.txt') }
+    )
+    # The portable ZIP is flat; the repository keeps supporting downloads in release/.
+    $packageChecksumPath = Join-Path $buildRoot 'portable-SHA256SUMS.txt'
+    $portableChecksums = $portableFiles | ForEach-Object {
+        (Get-FileHash -LiteralPath $_.Path -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $_.Name
     }
-    [IO.File]::WriteAllLines($checksumPath, $checksums, $utf8)
+    [IO.File]::WriteAllLines($packageChecksumPath, $portableChecksums, $utf8)
 
     $packagePath = Join-Path $releaseRoot 'PaloAltoCommandGenerator-1.0.0-Windows.zip'
     $packageStream = [IO.File]::Open($packagePath, [IO.FileMode]::Create)
     $packageZip = New-Object IO.Compression.ZipArchive($packageStream, [IO.Compression.ZipArchiveMode]::Create, $false)
     try {
-        foreach ($name in @('PaloAltoCommandGenerator.exe', 'README.txt', 'THIRD-PARTY-NOTICES.txt', 'SHA256SUMS.txt')) {
-            [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($packageZip, (Join-Path $releaseRoot $name), $name, [IO.Compression.CompressionLevel]::Optimal) | Out-Null
+        foreach ($file in $portableFiles) {
+            [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($packageZip, $file.Path, $file.Name, [IO.Compression.CompressionLevel]::Optimal) | Out-Null
         }
+        [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($packageZip, $packageChecksumPath, 'SHA256SUMS.txt', [IO.Compression.CompressionLevel]::Optimal) | Out-Null
     } finally { $packageZip.Dispose(); $packageStream.Dispose() }
-    $checksums += (Get-FileHash -LiteralPath $packagePath -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + [IO.Path]::GetFileName($packagePath)
-    [IO.File]::WriteAllLines($checksumPath, $checksums, $utf8)
+    $checksums = @($exe, $guide, (Join-Path $releaseRoot 'THIRD-PARTY-NOTICES.txt'), $packagePath) | ForEach-Object {
+        (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $_.Substring($projectRoot.Length + 1).Replace('\', '/')
+    }
+    [IO.File]::WriteAllLines((Join-Path $releaseRoot 'SHA256SUMS.txt'), $checksums, $utf8)
     Get-Item -LiteralPath $exe, $packagePath | Select-Object Name, Length, FullName
 } finally { Pop-Location }
