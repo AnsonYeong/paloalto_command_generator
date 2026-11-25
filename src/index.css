@@ -1,4 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@200..700&display=swap');
+@font-face {
+  font-family: 'Oswald';
+  font-style: normal;
+  font-weight: 200 700;
+  font-display: swap;
+  src: url('/fonts/Oswald-Variable.ttf') format('truetype');
+}
 
 :root {
   --font-family: 'Oswald', sans-serif;

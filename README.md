@@ -2,6 +2,25 @@
 
 A local Palo Alto PAN-OS command generator built with React, TypeScript, and Vite. Enter addresses and ports, create groups, then copy or download the CLI configuration.
 
+## Share the Windows executable
+
+Send coworkers `release/PaloAltoCommandGenerator-1.0.0-Windows.zip`. They extract it and double-click **PaloAltoCommandGenerator.exe**. The EXE contains the app, matrix parser and Oswald font; no Node.js, project folder, installation or internet connection is needed for normal use. The ZIP includes a short guide, third-party licenses and file checksums.
+
+The executable opens the tool in their default browser and shows a small launcher with **Open app** and **Exit**. Keep that launcher open while working; closing it stops the local server. It binds only to `127.0.0.1:52473`, so it is not available to other computers on the network. Reopening the EXE reuses an existing instance. It runs as the current user without requesting administrator access.
+
+Use Windows 10/11, .NET Framework 4.6 or newer, and a current Edge, Chrome, Brave or Firefox browser. .NET Framework is included with these Windows versions ([Microsoft's compatibility information](https://learn.microsoft.com/en-us/dotnet/framework/install/on-windows-and-server)). This is a portable browser launcher, not a bundled browser or a firewall client. The build is unsigned; organizations that restrict unsigned executables may need IT approval or a signed build.
+
+Each coworker's workspace stays in their own browser storage. Customer matrices and the developer's saved workspace are never packaged. To move objects from the development app to the EXE, use **Export workspace** in the development app and **Import workspace** in the executable's browser page. The different local addresses have separate storage. Use the same browser and port on subsequent launches; exported JSON backups can transfer data between browsers or computers.
+
+Rebuild and verify on Windows:
+
+```powershell
+npm run build:windows
+npm run test:windows
+```
+
+The build uses Windows' .NET Framework C# compiler and embeds only `dist/` into a single AnyCPU EXE. The Windows test copies just that EXE into a separate folder, checks the local server, then exercises the app in an isolated Chrome profile with external DNS blocked. It covers the matrix worker, local font, command workflows, export/import and persistence. Release files are written to the ignored `release/` folder. No signing certificate is included.
+
 ## Run locally
 
 From this project directory:
@@ -18,7 +37,7 @@ npm run build
 npm run preview
 ```
 
-The production build is written to `dist/`. No backend, credentials, or runtime API calls are used. The interface loads the Oswald font (weights 200–700) from Google Fonts, with a sans-serif fallback when unavailable. The CLI reference link opens Palo Alto's documentation when clicked.
+The production build is written to `dist/`. No backend, credentials, or runtime API calls are used. The interface bundles the Oswald font (weights 200–700) from [Google's font repository](https://github.com/google/fonts/tree/main/ofl/oswald), including its Open Font License, so typography works offline. The CLI reference link opens Palo Alto's online documentation when clicked.
 
 ## Workflow
 
@@ -101,3 +120,6 @@ The browser smoke test uses installed Google Chrome and the DevTools protocol, w
 - `src/App.css`: responsive interface styles.
 - `tests/generator.test.mjs`: command-generation tests.
 - `tests/matrix.test.mjs`: spreadsheet extraction and import tests.
+- `desktop/Launcher.cs`: portable Windows launcher and embedded local asset server.
+- `scripts/build-windows.ps1`: EXE/ZIP packaging, notices and checksums.
+- `scripts/windows-smoke.mjs`: standalone EXE and offline browser verification.

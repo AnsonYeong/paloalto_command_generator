@@ -7,6 +7,8 @@
     "dev": "vite",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "build": "tsc -b && vite build",
+    "build:windows": "powershell -NoProfile -File scripts/build-windows.ps1",
+    "test:windows": "node scripts/windows-smoke.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },

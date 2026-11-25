@@ -11,8 +11,12 @@ const qa = resolve(root, '.qa')
 await mkdir(qa, { recursive: true })
 // Remove only prior test downloads so checks cannot read a stale file.
 await Promise.all(['pan-os-config.txt', 'pan-workspace.json'].map(file => rm(resolve(qa, file), { force: true })))
-const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '5178', '--strictPort'], { cwd: root, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
+const packagedExe = process.env.PAN_BUILDER_EXE
+const server = packagedExe
+  ? spawn(packagedExe, ['--headless', '--port', '5178'], { cwd: resolve(packagedExe, '..'), windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
+  : spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '5178', '--strictPort'], { cwd: root, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
 let serverOutput = ''
+server.on('error', e => { serverOutput += e.message })
 server.stdout.on('data', d => { serverOutput += d })
 server.stderr.on('data', d => { serverOutput += d })
 let browser
@@ -24,8 +28,8 @@ async function until(fn, label) {
 }
 
 try {
-  await until(async () => (await fetch('http://127.0.0.1:5178')).ok, 'Vite startup')
-  browser = spawn(chrome, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--disable-background-networking', '--remote-debugging-port=9237', `--user-data-dir=${resolve(root, '.browser-qa')}`, 'about:blank'], { windowsHide: true, stdio: 'ignore' })
+  await until(async () => (await fetch('http://127.0.0.1:5178')).ok, packagedExe ? 'packaged EXE startup' : 'Vite startup')
+  browser = spawn(chrome, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--disable-background-networking', ...(packagedExe ? ['--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1, EXCLUDE localhost'] : []), '--remote-debugging-port=9237', `--user-data-dir=${resolve(root, '.browser-qa')}`, 'about:blank'], { windowsHide: true, stdio: 'ignore' })
   browser.on('error', e => { throw e })
   const targets = await until(async () => { const t = await (await fetch('http://127.0.0.1:9237/json')).json(); return t.some(p => p.type === 'page') && t }, 'Chrome startup')
   socket = new WebSocket(targets.find(t => t.type === 'page').webSocketDebuggerUrl)
@@ -33,10 +37,12 @@ try {
   let seq = 0
   const calls = new Map()
   const errors = []
+  const externalRequests = []
   socket.addEventListener('message', e => {
     const m = JSON.parse(e.data)
     if (m.id) { const p = calls.get(m.id); if (p) { calls.delete(m.id); m.error ? p.reject(new Error(JSON.stringify(m.error))) : p.resolve(m.result) } }
     else if (m.method === 'Runtime.exceptionThrown') errors.push(m.params.exceptionDetails.text + ' ' + (m.params.exceptionDetails.exception?.description || ''))
+    else if (m.method === 'Network.requestWillBeSent' && /^https?:/.test(m.params.request.url) && !m.params.request.url.startsWith('http://127.0.0.1:5178/')) externalRequests.push(m.params.request.url)
   })
   const cdp = (method, params = {}) => new Promise((resolve, reject) => { const id = ++seq; calls.set(id, { resolve, reject }); socket.send(JSON.stringify({ id, method, params })) })
   const run = async expression => {
@@ -65,14 +71,17 @@ try {
 
   await cdp('Page.enable')
   await cdp('Runtime.enable')
+  await cdp('Network.enable')
   await cdp('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1100, deviceScaleFactor: 1, mobile: false })
-  await cdp('Page.navigate', { url: 'http://127.0.0.1:5178' })
-  await until(() => run(`!!document.querySelector('h1')`), 'React render')
+  const navigation = await cdp('Page.navigate', { url: 'http://127.0.0.1:5178' })
+  if (navigation.errorText) throw new Error('Navigation failed: ' + navigation.errorText)
+  await until(() => run(`!!document.querySelector('.app-shell h1')`), 'React render')
   await run(`localStorage.clear()`)
   await cdp('Page.reload')
   await pause(300)
   await until(() => run(`!!document.querySelector('.copy-button')`), 'Empty workspace render')
   await run('document.fonts.ready.then(() => true)')
+  assert.equal(await run(`Array.from(document.fonts).some(f => f.family === 'Oswald' && f.status === 'loaded')`), true, 'bundled Oswald loads offline')
   assert.equal(await run(`${button('Copy commands')}.disabled`), true)
   await writeFile(resolve(qa, 'empty-desktop.png'), Buffer.from((await cdp('Page.captureScreenshot')).data, 'base64'))
 
@@ -309,6 +318,7 @@ try {
   assert.equal(await run(`document.querySelector('#sidebar-panel').hidden`), true)
   assert.match(await run(`document.querySelector('.panel-heading h2').textContent`), /service/)
   assert.deepEqual(errors, [], 'no unhandled browser exceptions')
+  if (packagedExe) assert.deepEqual(externalRequests, [], 'packaged app needs no external resources')
   console.log('Browser checks passed: validation, bulk paste, service presets, both groups, edit, delete/undo, scopes, command options, copy, downloads, persistence, import/export, matrix upload/mapping/filter/review/correction/append/undo, and desktop/mobile layout.')
   console.log(`Screenshots saved in ${qa}`)
   await cdp('Browser.close')
