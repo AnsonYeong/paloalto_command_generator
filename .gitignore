@@ -7,12 +7,13 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-.browser-qa/
-.qa/
-.desktop-build/
+# Generated app files stay inside app/ and out of GitHub downloads.
+/app/node_modules/
+/app/dist/
+/app/dist-ssr/
+/app/.browser-qa/
+/app/.qa/
+/app/.desktop-build/
 *.local
 
 # Editor directories and files

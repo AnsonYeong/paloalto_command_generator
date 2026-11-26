@@ -5,6 +5,7 @@ Unicode true
 !ifndef PROJECT_ROOT
   !error "PROJECT_ROOT must point to the repository."
 !endif
+!define APP_ROOT "${PROJECT_ROOT}\app"
 !ifndef SETUP_OUT
   !define SETUP_OUT "${PROJECT_ROOT}\Install-PAN-Builder.exe"
 !endif
@@ -28,8 +29,8 @@ VIAddVersionKey /LANG=1033 "FileVersion" "1.1.0"
 VIAddVersionKey /LANG=1033 "ProductVersion" "1.1.0"
 VIAddVersionKey /LANG=1033 "LegalCopyright" "PAN Builder contributors"
 
-!define MUI_ICON "${PROJECT_ROOT}\.desktop-build\app.ico"
-!define MUI_UNICON "${PROJECT_ROOT}\.desktop-build\app.ico"
+!define MUI_ICON "${APP_ROOT}\.desktop-build\app.ico"
+!define MUI_UNICON "${APP_ROOT}\.desktop-build\app.ico"
 !define MUI_ABORTWARNING
 !define MUI_WELCOMEPAGE_TITLE "Install PAN Builder"
 !define MUI_WELCOMEPAGE_TEXT "Install the Palo Alto Command Generator for your Windows account.$\r$\n$\r$\nSetup creates PAN Builder shortcuts on your desktop and in the Start menu.$\r$\n$\r$\nClose any running PAN Builder launcher before installing an update. Your saved browser workspace will be kept."
@@ -73,7 +74,7 @@ FunctionEnd
 Section "Install"
   SetOutPath "$INSTDIR"
   SetOverwrite on
-  File "${PROJECT_ROOT}\.desktop-build\PaloAltoCommandGenerator.exe"
+  File "${APP_ROOT}\.desktop-build\PaloAltoCommandGenerator.exe"
   File "${PROJECT_ROOT}\START_HERE.txt"
   File "${PROJECT_ROOT}\release\THIRD-PARTY-NOTICES.txt"
   WriteUninstaller "$INSTDIR\Uninstall.exe"

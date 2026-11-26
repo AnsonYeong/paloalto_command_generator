@@ -3,7 +3,8 @@ param([switch]$SkipWebBuild)
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$releaseRoot = Join-Path $projectRoot 'release'
+$repoRoot = [IO.Path]::GetFullPath((Join-Path $projectRoot '..'))
+$releaseRoot = Join-Path $repoRoot 'release'
 $buildRoot = Join-Path $projectRoot '.desktop-build'
 $distRoot = Join-Path $projectRoot 'dist'
 $compiler = Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
@@ -113,11 +114,10 @@ try {
     $exe = Join-Path $buildRoot 'PaloAltoCommandGenerator.exe'
     & $compiler /nologo /target:winexe /platform:anycpu /optimize+ "/out:$exe" "/win32icon:$iconPath" "/win32manifest:$(Join-Path $projectRoot 'desktop/app.manifest')" "/resource:$assetZip,PANBuilder.Assets.zip" /reference:System.dll /reference:System.Core.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.IO.Compression.dll (Join-Path $projectRoot 'desktop/Launcher.cs')
     if ($LASTEXITCODE -ne 0) { throw 'Windows EXE compilation failed.' }
-    $guide = Join-Path $projectRoot 'START_HERE.txt'
-    Copy-Item -LiteralPath (Join-Path $projectRoot 'desktop/README.txt') -Destination $guide -Force
+    $guide = Join-Path $repoRoot 'START_HERE.txt'
 
-    $setup = Join-Path $projectRoot 'Install-PAN-Builder.exe'
-    & $nsisCompiler /V2 "/DPROJECT_ROOT=$projectRoot" "/DSETUP_OUT=$setup" (Join-Path $projectRoot 'desktop/Installer.nsi')
+    $setup = Join-Path $repoRoot 'Install-PAN-Builder.exe'
+    & $nsisCompiler /V2 "/DPROJECT_ROOT=$repoRoot" "/DSETUP_OUT=$setup" (Join-Path $projectRoot 'desktop/Installer.nsi')
     if ($LASTEXITCODE -ne 0) { throw 'Windows installer compilation failed.' }
 
     $packageFiles = @(
@@ -142,7 +142,7 @@ try {
         [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($packageZip, $packageChecksumPath, 'SHA256SUMS.txt', [IO.Compression.CompressionLevel]::Optimal) | Out-Null
     } finally { $packageZip.Dispose(); $packageStream.Dispose() }
     $checksums = @($setup, $guide, (Join-Path $releaseRoot 'THIRD-PARTY-NOTICES.txt'), $packagePath) | ForEach-Object {
-        (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $_.Substring($projectRoot.Length + 1).Replace('\', '/')
+        (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $_.Substring($repoRoot.Length + 1).Replace('\', '/')
     }
     [IO.File]::WriteAllLines((Join-Path $releaseRoot 'SHA256SUMS.txt'), $checksums, $utf8)
     Get-Item -LiteralPath $setup, $packagePath | Select-Object Name, Length, FullName

@@ -3,6 +3,7 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$repoRoot = [IO.Path]::GetFullPath((Join-Path $projectRoot '..'))
 $qaRoot = Join-Path $projectRoot ('.qa/installer-' + [Guid]::NewGuid().ToString('N'))
 $qaRegistry = 'HKCU:\Software\PANBuilderInstallerTests\Shortcuts'
 $compiler = Join-Path $projectRoot '.desktop-build/tools/nsis-3.13/makensis.exe'
@@ -25,7 +26,7 @@ function Invoke-SilentInstaller([string]$File) {
 }
 
 try {
-    & $compiler /V2 "/DPROJECT_ROOT=$projectRoot" "/DQA_ROOT=$qaRoot" "/DSETUP_OUT=$setup" (Join-Path $projectRoot 'desktop/Installer.nsi')
+    & $compiler /V2 "/DPROJECT_ROOT=$repoRoot" "/DQA_ROOT=$qaRoot" "/DSETUP_OUT=$setup" (Join-Path $projectRoot 'desktop/Installer.nsi')
     if ($LASTEXITCODE -ne 0) { throw 'Test installer compilation failed.' }
     Invoke-SilentInstaller $setup
     if ((Get-FileHash -LiteralPath $installedExe).Hash -ne (Get-FileHash -LiteralPath (Join-Path $projectRoot '.desktop-build/PaloAltoCommandGenerator.exe')).Hash) { throw 'Installed executable differs from the packaged app.' }
