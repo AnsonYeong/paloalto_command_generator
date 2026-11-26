@@ -9,6 +9,7 @@
     "build": "tsc -b && vite build",
     "build:windows": "powershell -NoProfile -File scripts/build-windows.ps1",
     "test:windows": "node scripts/windows-smoke.mjs",
+    "test:installer": "powershell -NoProfile -File scripts/installer-smoke.ps1",
     "lint": "oxlint",
     "preview": "vite preview"
   },

@@ -14,8 +14,8 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("Palo Alto Command Generator")]
 [assembly: AssemblyProduct("PAN / builder")]
 [assembly: AssemblyDescription("Portable local address, service and group command generator")]
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyVersion("1.1.0.0")]
+[assembly: AssemblyFileVersion("1.1.0.0")]
 
 namespace PanBuilder
 {
@@ -119,7 +119,7 @@ namespace PanBuilder
             Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
 
             Controls.Add(new Label { Text = "PAN / builder", Font = new Font("Segoe UI", 22, FontStyle.Bold), Location = new Point(28, 23), AutoSize = true });
-            Controls.Add(new Label { Text = "Palo Alto Command Generator  |  v1.0.0", Location = new Point(30, 73), AutoSize = true, ForeColor = Color.FromArgb(170, 180, 194) });
+            Controls.Add(new Label { Text = "Palo Alto Command Generator  |  v1.1.0", Location = new Point(30, 73), AutoSize = true, ForeColor = Color.FromArgb(170, 180, 194) });
             Controls.Add(new Label { Text = "The tool runs locally in your browser.\nKeep this window open while using it. Closing it stops the app.", Location = new Point(30, 111), Size = new Size(480, 48) });
             Controls.Add(new Label { Text = "Workspace data is saved in this browser. Use Export workspace\nto keep a backup or transfer objects to another computer.", Location = new Point(30, 163), Size = new Size(480, 42), Font = new Font("Segoe UI", 9), ForeColor = Color.FromArgb(170, 180, 194) });
 

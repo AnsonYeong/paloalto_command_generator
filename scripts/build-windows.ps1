@@ -22,6 +22,20 @@ try {
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     Add-Type -AssemblyName System.Drawing
 
+    $nsisVersion = '3.13'
+    $nsisHash = 'BA63DFFC4410EE89193E1CB5A41989991BD77C61068DA17E3156D136B7B0B3D8'
+    $toolsRoot = Join-Path $buildRoot 'tools'
+    $nsisArchive = Join-Path $toolsRoot "nsis-$nsisVersion.zip"
+    $nsisRoot = Join-Path $toolsRoot "nsis-$nsisVersion"
+    $nsisCompiler = Join-Path $nsisRoot 'makensis.exe'
+    New-Item -ItemType Directory -Path $toolsRoot -Force | Out-Null
+    if (-not (Test-Path -LiteralPath $nsisArchive)) {
+        & curl.exe --fail --location --max-time 90 --silent --show-error --output $nsisArchive "https://downloads.sourceforge.net/project/nsis/NSIS%203/$nsisVersion/nsis-$nsisVersion.zip"
+        if ($LASTEXITCODE -ne 0) { throw 'Could not download the pinned NSIS installer compiler.' }
+    }
+    if ((Get-FileHash -LiteralPath $nsisArchive -Algorithm SHA256).Hash -ne $nsisHash) { throw 'NSIS download checksum does not match the pinned compiler.' }
+    if (-not (Test-Path -LiteralPath $nsisCompiler)) { Expand-Archive -LiteralPath $nsisArchive -DestinationPath $toolsRoot -Force }
+
     $notice = "PAN / builder - third-party notices`r`n`r`n"
     foreach ($dependency in @('react', 'react-dom', 'scheduler', 'xlsx')) {
         $packageRoot = Join-Path $projectRoot "node_modules/$dependency"
@@ -31,6 +45,9 @@ try {
     }
     $notice += "Oswald variable font - https://github.com/google/fonts/tree/main/ofl/oswald`r`n"
     $notice += Get-Content -LiteralPath (Join-Path $projectRoot 'public/fonts/OFL.txt') -Raw
+    $notice += "`r`n`r`nNSIS $nsisVersion - installer engine`r`nhttps://nsis.sourceforge.io/`r`n"
+    $notice += Get-Content -LiteralPath (Join-Path $nsisRoot 'COPYING') -Raw
+    $notice = [regex]::Replace($notice, '(?m)[ \t]+(?=\r?$)', '')
     $utf8 = New-Object System.Text.UTF8Encoding($false)
     [IO.File]::WriteAllText((Join-Path $distRoot 'THIRD-PARTY-NOTICES.txt'), $notice, $utf8)
     [IO.File]::WriteAllText((Join-Path $releaseRoot 'THIRD-PARTY-NOTICES.txt'), $notice, $utf8)
@@ -98,7 +115,12 @@ try {
     $guide = Join-Path $projectRoot 'START_HERE.txt'
     Copy-Item -LiteralPath (Join-Path $projectRoot 'desktop/README.txt') -Destination $guide -Force
 
+    $setup = Join-Path $projectRoot 'Install-PAN-Builder.exe'
+    & $nsisCompiler /V2 "/DPROJECT_ROOT=$projectRoot" "/DSETUP_OUT=$setup" (Join-Path $projectRoot 'desktop/Installer.nsi')
+    if ($LASTEXITCODE -ne 0) { throw 'Windows installer compilation failed.' }
+
     $portableFiles = @(
+        @{ Name = 'Install-PAN-Builder.exe'; Path = $setup },
         @{ Name = 'PaloAltoCommandGenerator.exe'; Path = $exe },
         @{ Name = 'START_HERE.txt'; Path = $guide },
         @{ Name = 'THIRD-PARTY-NOTICES.txt'; Path = (Join-Path $releaseRoot 'THIRD-PARTY-NOTICES.txt') }
@@ -110,7 +132,7 @@ try {
     }
     [IO.File]::WriteAllLines($packageChecksumPath, $portableChecksums, $utf8)
 
-    $packagePath = Join-Path $releaseRoot 'PaloAltoCommandGenerator-1.0.0-Windows.zip'
+    $packagePath = Join-Path $releaseRoot 'PaloAltoCommandGenerator-1.1.0-Windows.zip'
     $packageStream = [IO.File]::Open($packagePath, [IO.FileMode]::Create)
     $packageZip = New-Object IO.Compression.ZipArchive($packageStream, [IO.Compression.ZipArchiveMode]::Create, $false)
     try {
@@ -119,9 +141,9 @@ try {
         }
         [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($packageZip, $packageChecksumPath, 'SHA256SUMS.txt', [IO.Compression.CompressionLevel]::Optimal) | Out-Null
     } finally { $packageZip.Dispose(); $packageStream.Dispose() }
-    $checksums = @($exe, $guide, (Join-Path $releaseRoot 'THIRD-PARTY-NOTICES.txt'), $packagePath) | ForEach-Object {
+    $checksums = @($setup, $exe, $guide, (Join-Path $releaseRoot 'THIRD-PARTY-NOTICES.txt'), $packagePath) | ForEach-Object {
         (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $_.Substring($projectRoot.Length + 1).Replace('\', '/')
     }
     [IO.File]::WriteAllLines((Join-Path $releaseRoot 'SHA256SUMS.txt'), $checksums, $utf8)
-    Get-Item -LiteralPath $exe, $packagePath | Select-Object Name, Length, FullName
+    Get-Item -LiteralPath $setup, $exe, $packagePath | Select-Object Name, Length, FullName
 } finally { Pop-Location }
