@@ -4,7 +4,7 @@ A local Palo Alto PAN-OS command generator. Create address and service objects, 
 
 ## Install and use
 
-**[Download installer](https://github.com/AnsonYeong/paloalto_command_generator/raw/refs/heads/main/Install-PAN-Builder.exe)** | **[Download Windows ZIP](https://github.com/AnsonYeong/paloalto_command_generator/raw/refs/heads/main/release/PaloAltoCommandGenerator-1.1.0-Windows.zip)**
+**[Download installer](https://github.com/AnsonYeong/paloalto_command_generator/releases/latest/download/Install-PAN-Builder.exe)** | **[Latest release and Windows ZIP](https://github.com/AnsonYeong/paloalto_command_generator/releases/latest)**
 
 1. Download the installer, or extract the ZIP.
 2. Double-click **Install-PAN-Builder.exe** and follow Setup.
@@ -17,6 +17,10 @@ If you download the whole repository using **Code > Download ZIP**, the installe
 
 Read [START_HERE.txt](START_HERE.txt) for requirements, workspace backups, and troubleshooting. The app runs locally in your browser and generates commands for you to review and apply to the firewall.
 
+## Version history
+
+Use [GitHub Releases](https://github.com/AnsonYeong/paloalto_command_generator/releases) to track versions, read changes, and download a specific build. Each published release includes an installer, Windows ZIP, user guide, third-party notices, and SHA-256 checksums. The first release is [v1.1.0](https://github.com/AnsonYeong/paloalto_command_generator/releases/tag/v1.1.0); its notes are also stored in [`release/notes/`](release/notes/).
+
 ## Folder layout
 
 ```text
@@ -24,7 +28,7 @@ paloalto_command_generator/
 |-- Install-PAN-Builder.exe   Run this to install the app
 |-- START_HERE.txt            Quick-start guide
 |-- README.md                Project overview
-|-- release/                 Windows ZIP, notices and checksums
+|-- release/                 Windows ZIP, release notes, notices and checksums
 `-- app/                     Source code, configuration, build scripts and tests
 ```
 
