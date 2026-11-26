@@ -2,9 +2,9 @@
 
 A local Palo Alto PAN-OS command generator built with React, TypeScript, and Vite. Enter addresses and ports, create groups, then copy or download the CLI configuration.
 
-## Share the Windows executable
+## Share the Windows installer
 
-**[Download installer](https://github.com/AnsonYeong/paloalto_command_generator/raw/refs/heads/main/Install-PAN-Builder.exe)** · **[Download Windows ZIP](https://github.com/AnsonYeong/paloalto_command_generator/raw/refs/heads/main/release/PaloAltoCommandGenerator-1.1.0-Windows.zip)** · **[Portable EXE](https://github.com/AnsonYeong/paloalto_command_generator/raw/refs/heads/main/PaloAltoCommandGenerator.exe)**
+**[Download installer](https://github.com/AnsonYeong/paloalto_command_generator/raw/refs/heads/main/Install-PAN-Builder.exe)** · **[Download Windows ZIP](https://github.com/AnsonYeong/paloalto_command_generator/raw/refs/heads/main/release/PaloAltoCommandGenerator-1.1.0-Windows.zip)**
 
 1. Download **Install-PAN-Builder.exe**, or download and extract the **Windows ZIP**.
 2. Double-click **Install-PAN-Builder.exe** and follow Setup.
@@ -13,14 +13,13 @@ A local Palo Alto PAN-OS command generator built with React, TypeScript, and Vit
 
 The installer creates desktop and Start menu shortcuts and installs the app for your Windows account under `%LOCALAPPDATA%\Programs\PANBuilder`. No administrator access is needed. You can delete the downloaded files afterward; the shortcuts point to the installed copy. To update, close the launcher and run the new installer. To uninstall, use **Windows Settings → Apps → Installed apps → PAN Builder**, or **Uninstall PAN Builder** in its Start menu folder. Your saved browser workspace is preserved.
 
-If you use GitHub's green **Code → Download ZIP**, extract that ZIP and open the extracted project folder. **Install-PAN-Builder.exe** and **PaloAltoCommandGenerator.exe** are at the top level beside **START_HERE.txt**. The repository is private, so sign into GitHub with an account that has access before downloading.
+If you use GitHub's green **Code → Download ZIP**, extract that ZIP and open the extracted project folder. **Install-PAN-Builder.exe** is at the top level beside **START_HERE.txt**. The repository is private, so sign into GitHub with an account that has access before downloading.
 
-For portable use without installation or shortcuts, open **PaloAltoCommandGenerator.exe** directly. Both options include the app, matrix parser and Oswald font; no Node.js, project folder or internet connection is needed for normal use. The Windows ZIP includes both EXEs, a short guide, third-party licenses and file checksums. [`release/`](release/) contains the ZIP, notices and checksums.
+The installer includes the complete app, matrix parser and Oswald font; no Node.js, project folder or internet connection is needed for normal use. The Windows ZIP includes the installer, a short guide, third-party licenses and file checksums. [`release/`](release/) contains the ZIP, notices and checksums.
 
 ```text
 paloalto_command_generator-main/
 ├── Install-PAN-Builder.exe        ← Install with desktop / Start menu shortcuts
-├── PaloAltoCommandGenerator.exe   ← Run directly without installing
 ├── START_HERE.txt                 ← Instructions for coworkers
 ├── README.md
 ├── release/                      ← Windows ZIP, notices and checksums
@@ -31,7 +30,7 @@ paloalto_command_generator-main/
 └── tests/                        ← Application tests
 ```
 
-The executable opens the tool in their default browser and shows a small launcher with **Open app** and **Exit**. Keep that launcher open while working; closing it stops the local server. It binds only to `127.0.0.1:52473`, so it is not available to other computers on the network. Reopening the EXE reuses an existing instance. It runs as the current user without requesting administrator access.
+The installed app opens the tool in the default browser and shows a small launcher with **Open app** and **Exit**. Keep that launcher open while working; closing it stops the local server. It binds only to `127.0.0.1:52473`, so it is not available to other computers on the network. Opening the shortcut again reuses an existing instance. It runs as the current user without requesting administrator access.
 
 Use Windows 10/11, .NET Framework 4.6 or newer, and a current Edge, Chrome, Brave or Firefox browser. .NET Framework is included with these Windows versions ([Microsoft's compatibility information](https://learn.microsoft.com/en-us/dotnet/framework/install/on-windows-and-server)). The app runs in your browser and does not connect to a firewall. These builds are unsigned; organizations that restrict unsigned executables may need IT approval or signed builds.
 
@@ -45,11 +44,11 @@ npm run test:windows
 npm run test:installer
 ```
 
-The build uses Windows' .NET Framework C# compiler and embeds only `dist/` into a single AnyCPU EXE. It downloads the pinned [NSIS 3.13 compiler](https://sourceforge.net/projects/nsis/files/NSIS%203/3.13/) into ignored `.desktop-build/tools/`, verifies its SHA-256 hash, and builds the current-user installer. The compiler is reused for subsequent builds. No build tool is installed system-wide.
+The build uses Windows' .NET Framework C# compiler and embeds only `dist/` into an internal AnyCPU EXE at ignored `.desktop-build/PaloAltoCommandGenerator.exe`. This application binary is embedded in the installer and is not published separately. The build downloads the pinned [NSIS 3.13 compiler](https://sourceforge.net/projects/nsis/files/NSIS%203/3.13/) into ignored `.desktop-build/tools/`, verifies its SHA-256 hash, and builds the current-user installer. The compiler is reused for subsequent builds. No build tool is installed system-wide.
 
 The Windows test copies just the app EXE into a separate folder, checks the local server, then exercises the app in an isolated Chrome profile with external DNS blocked. It covers the matrix worker, local font, command workflows, export/import and persistence. The installer test compiles the same installer script with redirected test folders and a temporary test registry key. It verifies the installed EXE, shortcut targets/icons, app startup, reinstall/repair, and uninstall without changing the real desktop or Start menu. Uninstall removes only product files and keeps unrelated files and browser workspaces.
 
-The build writes both EXEs and `START_HERE.txt` to the repository root, and the ZIP, notices and checksums to `release/`. Commit those updated files when publishing a new build. The Windows ZIP contains both EXEs and the guide directly at its top level too. No signing certificate is included.
+The build writes `Install-PAN-Builder.exe` and `START_HERE.txt` to the repository root, and the ZIP, notices and checksums to `release/`. Commit those updated files when publishing a new build. The Windows ZIP contains the installer and the guide directly at its top level too. No signing certificate is included.
 
 ## Run locally
 
@@ -150,7 +149,7 @@ The browser smoke test uses installed Google Chrome and the DevTools protocol, w
 - `src/App.css`: responsive interface styles.
 - `tests/generator.test.mjs`: command-generation tests.
 - `tests/matrix.test.mjs`: spreadsheet extraction and import tests.
-- `desktop/Launcher.cs`: portable Windows launcher and embedded local asset server.
+- `desktop/Launcher.cs`: installed Windows launcher and embedded local asset server.
 - `desktop/Installer.nsi`: current-user installer, desktop/Start menu shortcuts and uninstall.
 - `scripts/build-windows.ps1`: EXE/ZIP packaging, notices and checksums.
 - `scripts/windows-smoke.mjs`: standalone EXE and offline browser verification.

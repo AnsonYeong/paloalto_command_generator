@@ -5,7 +5,7 @@ INSTALL ONCE, THEN USE THE SHORTCUT
 Download the Windows ZIP or installer using the links at:
 https://github.com/AnsonYeong/paloalto_command_generator
 
-1. Extract the ZIP, then double-click Install-PAN-Builder.exe.
+1. If you downloaded a ZIP, extract it. Double-click Install-PAN-Builder.exe.
 2. Follow Setup. It installs the app for your Windows account and creates
    PAN Builder shortcuts on your desktop and in your Start menu.
 3. Next time, double-click the PAN Builder desktop shortcut, or press the
@@ -20,17 +20,13 @@ required. To update, close the launcher and run the newer installer.
 To remove it, use Windows Settings > Apps > Installed apps > PAN Builder,
 or the Uninstall PAN Builder shortcut in its Start menu folder.
 
-PORTABLE OPTION
-If you prefer not to install, double-click PaloAltoCommandGenerator.exe.
-Portable use does not create shortcuts; keep the EXE in a convenient folder.
-
 If you downloaded the whole repository with Code > Download ZIP, extract
-it and open the extracted project folder. Install-PAN-Builder.exe and
-PaloAltoCommandGenerator.exe are right there beside this START_HERE.txt.
+it and open the extracted project folder. Install-PAN-Builder.exe is
+right there beside this START_HERE.txt and contains the complete app.
 You do not need to open the source or release folders to use the app.
 
 No Node.js or internet connection is needed to use the tool. The font and
-spreadsheet reader are included in both installed and portable versions.
+spreadsheet reader are included in the installed app.
 Use Windows 10/11 with .NET Framework 4.6 or newer and a current version
 of Edge, Chrome, Brave or Firefox. .NET Framework is included with Windows.
 
@@ -49,9 +45,10 @@ To move your existing objects, export from the development website and
 import the JSON file into the executable's browser page.
 
 The local address is http://127.0.0.1:52473/ . The launcher only listens
-on this computer, not your network. Opening the EXE again reopens the
+on this computer, not your network. Opening the shortcut again reopens the
 already running app. If another application uses port 52473, close it or
-launch this EXE with --port 52474. Always use the same port and browser
+add --port 52474 to the app shortcut's Target after the quoted EXE path.
+Always use the same port and browser
 to return to the same saved workspace.
 
 COMMANDS
@@ -61,9 +58,9 @@ This tool does not connect to or configure your firewall automatically.
 Review the target scope and generated commands before applying them.
 
 DISTRIBUTION
-The EXE is portable and contains the whole app. Keep this START_HERE.txt
+Install-PAN-Builder.exe contains the whole app. Keep this START_HERE.txt
 guide and the third-party notices when distributing the package. Notices
-are beside the EXE in the Windows ZIP, or in release/ in the repository.
+are beside the installer in the Windows ZIP, or in release/ in the repository.
 The executable is not code-signed. If your organization blocks unsigned
 applications, ask your IT team to approve or sign this build.
 SHA256SUMS.txt in the Windows ZIP verifies its flat files. The repository's

@@ -13,7 +13,7 @@ using System.Windows.Forms;
 
 [assembly: AssemblyTitle("Palo Alto Command Generator")]
 [assembly: AssemblyProduct("PAN / builder")]
-[assembly: AssemblyDescription("Portable local address, service and group command generator")]
+[assembly: AssemblyDescription("Local address, service and group command generator")]
 [assembly: AssemblyVersion("1.1.0.0")]
 [assembly: AssemblyFileVersion("1.1.0.0")]
 

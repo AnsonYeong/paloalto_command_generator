@@ -73,7 +73,7 @@ FunctionEnd
 Section "Install"
   SetOutPath "$INSTDIR"
   SetOverwrite on
-  File "${PROJECT_ROOT}\PaloAltoCommandGenerator.exe"
+  File "${PROJECT_ROOT}\.desktop-build\PaloAltoCommandGenerator.exe"
   File "${PROJECT_ROOT}\START_HERE.txt"
   File "${PROJECT_ROOT}\release\THIRD-PARTY-NOTICES.txt"
   WriteUninstaller "$INSTDIR\Uninstall.exe"

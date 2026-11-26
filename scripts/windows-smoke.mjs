@@ -8,16 +8,16 @@ import assert from 'node:assert/strict'
 const root = process.cwd()
 const qa = resolve(root, '.qa')
 await mkdir(qa, { recursive: true })
-const portable = await mkdtemp(resolve(qa, 'portable-'))
-const executable = resolve(portable, 'PaloAltoCommandGenerator.exe')
-await copyFile(resolve(root, 'PaloAltoCommandGenerator.exe'), executable)
-assert.deepEqual(await readdir(portable), ['PaloAltoCommandGenerator.exe'])
+const appFolder = await mkdtemp(resolve(qa, 'windows-app-'))
+const executable = resolve(appFolder, 'PaloAltoCommandGenerator.exe')
+await copyFile(resolve(root, '.desktop-build/PaloAltoCommandGenerator.exe'), executable)
+assert.deepEqual(await readdir(appFolder), ['PaloAltoCommandGenerator.exe'])
 const bytes = await readFile(executable)
 assert.equal(bytes.subarray(0, 2).toString(), 'MZ', 'real Windows executable')
 
 const pause = ms => new Promise(r => setTimeout(r, ms))
 function launch(args) {
-  const child = spawn(executable, args, { cwd: portable, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
+  const child = spawn(executable, args, { cwd: appFolder, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
   child.on('error', e => { console.error(e); process.exitCode = 1 })
   return child
 }
@@ -86,4 +86,4 @@ const browserCheck = spawn(process.execPath, ['scripts/browser-smoke.mjs'], {
   cwd: root, env: { ...process.env, PAN_BUILDER_EXE: executable }, windowsHide: true, stdio: 'inherit',
 })
 assert.equal(await ended(browserCheck, 120000), 0, 'packaged browser workflows pass offline')
-console.log('Portable Windows package verified from ' + portable)
+console.log('Windows application payload verified from ' + appFolder)

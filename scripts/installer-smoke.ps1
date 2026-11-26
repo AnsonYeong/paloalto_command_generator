@@ -28,7 +28,7 @@ try {
     & $compiler /V2 "/DPROJECT_ROOT=$projectRoot" "/DQA_ROOT=$qaRoot" "/DSETUP_OUT=$setup" (Join-Path $projectRoot 'desktop/Installer.nsi')
     if ($LASTEXITCODE -ne 0) { throw 'Test installer compilation failed.' }
     Invoke-SilentInstaller $setup
-    if ((Get-FileHash -LiteralPath $installedExe).Hash -ne (Get-FileHash -LiteralPath (Join-Path $projectRoot 'PaloAltoCommandGenerator.exe')).Hash) { throw 'Installed executable differs from the packaged app.' }
+    if ((Get-FileHash -LiteralPath $installedExe).Hash -ne (Get-FileHash -LiteralPath (Join-Path $projectRoot '.desktop-build/PaloAltoCommandGenerator.exe')).Hash) { throw 'Installed executable differs from the packaged app.' }
     $shell = New-Object -ComObject WScript.Shell
     foreach ($linkPath in @($desktopLink, $menuLink, $removeLink)) {
         if (-not (Test-Path -LiteralPath $linkPath)) { throw "Shortcut missing: $linkPath" }
