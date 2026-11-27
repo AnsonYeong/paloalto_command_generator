@@ -147,6 +147,8 @@ try {
   await click('DNS · UDP')
   await click('Add service')
   assert.equal(await count('services'), 2)
+  assert.match(await command(), /^set service TCP-443 protocol tcp override no$/m)
+  assert.match(await command(), /^set service UDP-53 protocol udp override no$/m)
   await nav(2)
   await fill('Group name', 'WEB-SERVERS')
   await click('Select all')

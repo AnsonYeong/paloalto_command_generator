@@ -244,6 +244,7 @@ export function generateCommands(workspace: Workspace): { lines: CommandLine[]; 
   workspace.services.forEach(s => {
     const source = s.sourcePorts.trim() ? ` source-port ${normalizePorts(s.sourcePorts)}` : ''
     push(`${prefix} service ${cliName(s.name)} protocol ${s.protocol} port ${normalizePorts(s.ports)}${source}`, 'Services')
+    push(`${prefix} service ${cliName(s.name)} protocol ${s.protocol} override no`, 'Services')
     if (s.description) push(`${prefix} service ${cliName(s.name)} description ${quote(s.description)}`, 'Services')
   })
   workspace.groups.forEach(g => {

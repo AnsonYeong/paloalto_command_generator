@@ -100,6 +100,7 @@ The entire batch must pass validation before any addresses are added. Hosts with
 
 - Objects are emitted before groups. Each group membership uses its own command to keep lines short for large batches.
 - Address groups use `static`; service groups use `members`.
+- Every service emits a separate `protocol tcp override no` or `protocol udp override no` command after its port definition, using the selected protocol. This explicitly selects inherited application timeouts for manually added and imported services. Applying it to an existing service changes its timeout configuration to inheritance; custom service timeouts are not preserved.
 - Object, group, member, and scope names are unquoted unless they contain spaces. Description text remains quoted. Preview, clipboard, and text downloads use the same command output.
 - Generated address names preserve dots and use underscores: `10.202.52.0/23` becomes `NET_10.202.52.0_23`, and `192.0.2.1` becomes `HOST_192.0.2.1`. This applies to single entries, bulk paste and matrix imports. Loading a saved or imported workspace upgrades names that exactly match the previous generated pattern, preserving object IDs and group memberships; collisions receive numbered suffixes.
 - Existing objects with the same name can be updated when you paste these commands. The tool does not inspect your firewall for existing objects or conflicts.

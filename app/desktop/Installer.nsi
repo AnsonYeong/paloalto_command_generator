@@ -22,11 +22,11 @@ RequestExecutionLevel user
 SetCompressor /SOLID lzma
 ShowInstDetails show
 ShowUninstDetails show
-VIProductVersion "1.1.0.0"
+VIProductVersion "1.1.1.0"
 VIAddVersionKey /LANG=1033 "ProductName" "PAN Builder"
 VIAddVersionKey /LANG=1033 "FileDescription" "PAN Builder installer"
-VIAddVersionKey /LANG=1033 "FileVersion" "1.1.0"
-VIAddVersionKey /LANG=1033 "ProductVersion" "1.1.0"
+VIAddVersionKey /LANG=1033 "FileVersion" "1.1.1"
+VIAddVersionKey /LANG=1033 "ProductVersion" "1.1.1"
 VIAddVersionKey /LANG=1033 "LegalCopyright" "PAN Builder contributors"
 
 !define MUI_ICON "${APP_ROOT}\.desktop-build\app.ico"
@@ -88,7 +88,7 @@ Section "Install"
   IfErrors shortcut_failed
 
   WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayName" "PAN Builder - Palo Alto Command Generator"
-  WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayVersion" "1.1.0"
+  WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayVersion" "1.1.1"
   WriteRegStr HKCU "${UNINSTALL_KEY}" "Publisher" "PAN / builder"
   WriteRegStr HKCU "${UNINSTALL_KEY}" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayIcon" '$\"$INSTDIR\PaloAltoCommandGenerator.exe$\",0'

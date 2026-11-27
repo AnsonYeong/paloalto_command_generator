@@ -1,4 +1,4 @@
-PAN / builder - Palo Alto Command Generator v1.1.0
+PAN / builder - Palo Alto Command Generator v1.1.1
 ================================================
 
 INSTALL ONCE, THEN USE THE SHORTCUT
@@ -54,6 +54,9 @@ to return to the same saved workspace.
 COMMANDS
 Build address objects, TCP/UDP services and static groups; import XLSX,
 XLS or CSV matrices; review and copy/download the PAN-OS CLI commands.
+Each service includes protocol tcp override no or protocol udp override no
+to inherit application timeouts. Applying these commands to an existing
+service changes its timeout configuration to inheritance.
 This tool does not connect to or configure your firewall automatically.
 Review the target scope and generated commands before applying them.
 

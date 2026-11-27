@@ -42,7 +42,7 @@ try {
         } finally { [Runtime.InteropServices.Marshal]::FinalReleaseComObject($link) | Out-Null }
     }
     $registration = Get-ItemProperty -LiteralPath $qaRegistry
-    if ($registration.DisplayVersion -ne '1.1.0' -or $registration.InstallLocation -ne $installedRoot) { throw 'Installed Apps registration is incorrect.' }
+    if ($registration.DisplayVersion -ne '1.1.1' -or $registration.InstallLocation -ne $installedRoot) { throw 'Installed Apps registration is incorrect.' }
 
     # Test the shortcut target without opening a browser or changing the real desktop.
     $appProcess = Start-Process -FilePath $installedExe -ArgumentList '--headless', '--port', '52575' -WindowStyle Hidden -PassThru

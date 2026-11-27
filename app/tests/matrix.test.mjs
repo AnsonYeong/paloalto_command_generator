@@ -116,6 +116,8 @@ test('planning deduplicates values, reuses existing objects, resolves name colli
   const next = { ...workspace, addresses: [...workspace.addresses, ...plan.addresses], services: [...workspace.services, ...plan.services] }
   assert.deepEqual(validateWorkspace(next), [])
   assert.ok(generateCommands(next).lines.some(l => l.text.includes('service UDP-53 protocol udp port 53')))
+  assert.ok(generateCommands(next).lines.some(l => l.text === 'set service UDP-53 protocol udp override no'))
+  assert.ok(generateCommands(next).lines.some(l => l.text === 'set service HTTPS protocol tcp override no'))
   assert.equal(planMatrixImport([row], next, defaults).addresses.length, 0)
   assert.equal(planMatrixImport([row], next, defaults).services.length, 0)
 })

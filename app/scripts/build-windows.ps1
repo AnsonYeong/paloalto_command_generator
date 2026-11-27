@@ -132,7 +132,7 @@ try {
     }
     [IO.File]::WriteAllLines($packageChecksumPath, $packageChecksums, $utf8)
 
-    $packagePath = Join-Path $releaseRoot 'PaloAltoCommandGenerator-1.1.0-Windows.zip'
+    $packagePath = Join-Path $releaseRoot 'PaloAltoCommandGenerator-1.1.1-Windows.zip'
     $packageStream = [IO.File]::Open($packagePath, [IO.FileMode]::Create)
     $packageZip = New-Object IO.Compression.ZipArchive($packageStream, [IO.Compression.ZipArchiveMode]::Create, $false)
     try {

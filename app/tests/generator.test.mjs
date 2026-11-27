@@ -64,6 +64,30 @@ test('one group member per command keeps large groups below CLI line limits', ()
   assert.equal(output.lines.filter(l => l.section === 'Groups').length, 200)
   assert.ok(output.lines.every(l => l.text.length < 1024))
 })
+test('service timeout inheritance follows the selected protocol across scopes, ranges and custom names', () => {
+  const services = [
+    { id: 'tcp', name: 'TCP-1024-65535', protocol: 'tcp', ports: '1024-65535', sourcePorts: '', description: '' },
+    { id: 'udp', name: 'UDP-53', protocol: 'udp', ports: '53', sourcePorts: '', description: '' },
+    { id: 'custom-udp', name: 'TCP label for DNS', protocol: 'udp', ports: '53,123', sourcePorts: '', description: '' },
+    { id: 'custom-tcp', name: 'UDP label for Web', protocol: 'tcp', ports: '443', sourcePorts: '1024-65535', description: '' },
+  ]
+  const commands = [
+    'service TCP-1024-65535 protocol tcp port 1024-65535',
+    'service TCP-1024-65535 protocol tcp override no',
+    'service UDP-53 protocol udp port 53',
+    'service UDP-53 protocol udp override no',
+    'service "TCP label for DNS" protocol udp port 53,123',
+    'service "TCP label for DNS" protocol udp override no',
+    'service "UDP label for Web" protocol tcp port 443 source-port 1024-65535',
+    'service "UDP label for Web" protocol tcp override no',
+  ]
+  for (const [scope, scopeName, prefix] of [['firewall', '', 'set'], ['shared', '', 'set shared'], ['vsys', 'vsys2', 'set vsys vsys2'], ['device-group', 'Branch Offices', 'set device-group "Branch Offices"']]) {
+    const result = generateCommands({ ...emptyWorkspace(), services, scope, scopeName, includeConfigure: false })
+    assert.deepEqual(result.issues, [])
+    assert.deepEqual(result.lines, commands.map(command => ({ text: `${prefix} ${command}`, section: 'Services' })))
+  }
+})
+
 test('destination and source ports normalize without changing their meaning', () => {
   const w = exampleWorkspace()
   w.services[0].ports = '80, 443,443,8000-8100'
